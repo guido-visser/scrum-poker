@@ -1,26 +1,34 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { PureComponent } from "react";
+import { getParams } from "./Helper";
+import Home from "./Home";
+import Room from "./Room";
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+interface State {
+    room: string;
+}
+
+class App extends PureComponent<{}, State> {
+    constructor(props: {}) {
+        super(props);
+        this.state = { room: getParams?.join || "" };
+    }
+
+    handleSetRoom = (room: string) => {
+        this.setState({ room });
+    };
+
+    render() {
+        const { room } = this.state;
+        return (
+            <div className="app">
+                {!room ? (
+                    <Home onRoomChange={this.handleSetRoom} />
+                ) : (
+                    <Room room={room} />
+                )}
+            </div>
+        );
+    }
 }
 
 export default App;

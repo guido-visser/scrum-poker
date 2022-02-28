@@ -1,0 +1,30 @@
+$mainColor: #e1e1e1;
+
+.app {
+  background: #333;
+  
+  &__title,h2 {
+    color: $mainColor;
+    text-align: center;
+    font-size: 70px;
+  }
+
+  hr {
+    margin: 20px 0; 
+  }
+
+  h2{
+    font-size: 30px;
+    margin-bottom: 50px;
+  }
+
+  .txtField {
+    text-align: center;
+  }
+
+  &__form{
+    width: 500px;
+    padding: 0 50px;
+    margin: 0 auto;
+  }
+}
