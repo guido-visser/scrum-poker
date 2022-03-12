@@ -1,8 +1,8 @@
-const { v4: GenGUID } = require("uuid");
+require("uuid");
 
 class UserHandler {
-    createUser(username, isMaster) {
-        return { id: GenGUID(), username, isMaster };
+    createUser(username, id, isMaster) {
+        return { id, username, isMaster };
     }
 }
 

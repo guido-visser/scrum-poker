@@ -10,6 +10,7 @@ io.on("connection", (socket) => {
     console.log("a user connected");
     socket.on("disconnect", () => {
         console.log("user disconnected");
+        leaveRoom(socket.id, RoomHandler.getRoomIdByUserId(socket.id));
     });
 
     socket.on("createJoin", (obj, callback) => {
@@ -17,29 +18,38 @@ io.on("connection", (socket) => {
         const roomId = RoomHandler.exists(roomName);
         if (roomId) {
             //Join the room
-            const user = UserHandler.createUser(username, false);
+            socket.sp_roomId = roomId;
+            const user = UserHandler.createUser(username, socket.id, false);
             const room = RoomHandler.joinRoom(roomId, user);
             socket.join(room.id);
-            io.to(room.id).emit("roomUpdate", room);
             if (callback) callback({ room, user });
+            io.to(room.id).emit("roomUpdate", room);
         } else {
             //Create the room
-            const user = UserHandler.createUser(username);
+            const user = UserHandler.createUser(username, socket.id);
             const room = RoomHandler.createRoom(roomName, user);
             socket.join(room.id);
-            io.to(room.id).emit("roomUpdate", room);
             if (callback) callback({ room, user });
+            io.to(room.id).emit("roomUpdate", room);
         }
     });
 
-    socket.on("leaveRoom", (roomId, userId) => {
-        RoomHandler.leaveRoom(roomId, userId);
-        io.to(roomId).emit("roomUpdate", RoomHandler.getRoom(roomId));
-        socket.leave(roomId);
+    socket.on("startVoting", (roomId) => {
+        io.to(roomId).emit("roomUpdate", RoomHandler.startVoting(roomId));
     });
 
-    socket.on("roomUpdateTest", (roomId) => {
-        socket.emit("roomUpdate", RoomHandler.getRoom(roomId));
+    socket.on("castVote", ({ roomId, userId, vote }) => {
+        const room = RoomHandler.castVote(userId, roomId, vote);
+        io.to(roomId).emit("roomUpdate", room);
+    });
+
+    const leaveRoom = (userId, roomId) => {
+        io.to(roomId).emit("roomUpdate", RoomHandler.leaveRoom(roomId, userId));
+        socket.leave(roomId);
+    };
+
+    socket.on("leaveRoom", ({ roomId, userId }) => {
+        leaveRoom(userId, roomId);
     });
 });
 

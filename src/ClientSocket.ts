@@ -11,7 +11,7 @@ class ClientSocket {
         this.socket.disconnect();
     }
 
-    emit(id: string, thing: any, callback?: (thing: any) => void) {
+    emit(id: string, thing?: any, callback?: (thing: any) => void) {
         this.socket.emit(id, thing, callback);
     }
 

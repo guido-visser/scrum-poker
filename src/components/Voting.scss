@@ -1,0 +1,26 @@
+.story {
+    max-width: 800px;
+    justify-content: center;
+    display: flex;
+    margin: 10px;
+    font-size: 20px;
+    padding: 0 10px;
+    border-radius: 5px;
+    height: 30px;
+    background: rgba(0,0,0,0.3);
+    transition: 0.2s all;
+
+
+    &__number {
+        width: 30px;
+    }
+    &__name {
+        flex:1;
+        text-align: center;
+    }
+
+    &:hover{
+        cursor: pointer;
+        background: rgba(0,0,0,0.5);
+    }
+}

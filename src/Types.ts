@@ -4,6 +4,9 @@ export interface RoomObj {
     id: string;
     name: string;
     users: Dictionary<UserObj>;
+    votes: Dictionary<number>;
+    voting: boolean;
+    stories: Dictionary<string>;
 }
 
 export interface UserObj {
