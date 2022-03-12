@@ -52,7 +52,7 @@ class Room extends React.PureComponent<RoomProps, State> {
         Object.keys(this.props.room.votes).forEach((vote) => {
             total = total + this.props.room.votes[vote];
         });
-        return total / totalUsers;
+        return Math.round((total / totalUsers + Number.EPSILON) * 100) / 100;
     };
 
     render() {

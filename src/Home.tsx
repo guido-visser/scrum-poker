@@ -52,7 +52,6 @@ class Home extends PureComponent<HomeProps, State> {
                         }}
                         value={this.state.username}
                     />
-                    <hr />
                     <input
                         className="txtField"
                         placeholder="Room name"
