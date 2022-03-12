@@ -51,6 +51,7 @@ button {
   border: none;
   background: rgba(0,0,0,0.3);
   color: $mainColor;
+  transition: .2s all;
   &:hover{
     background: rgba(0,0,0,0.5);
     cursor: pointer;
@@ -58,5 +59,12 @@ button {
 
   &:disabled{
     opacity: 0.5;
+  }
+}
+
+.danger{
+  background: rgba(200, 0,0,0.3);
+  &:hover{
+    background:rgba(200, 0,0,0.5)
   }
 }

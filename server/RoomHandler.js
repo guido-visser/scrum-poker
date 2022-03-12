@@ -5,6 +5,8 @@ class RoomHandler {
     rooms = {};
     users = {};
 
+    // Room stuff
+
     createRoom(roomName, user) {
         const roomId = GenGUID();
         const newRoom = {
@@ -33,37 +35,6 @@ class RoomHandler {
         };
         this.users[user.id] = roomId;
         return newRoom[roomId];
-    }
-
-    exists(roomName) {
-        return Object.keys(this.rooms).find(
-            (roomId) => this.rooms[roomId].name === roomName
-        );
-    }
-
-    startVoting(roomId) {
-        const thisRoom = this.rooms[roomId];
-        thisRoom.voting = true;
-        thisRoom.votes = {};
-        return thisRoom;
-    }
-    stopVoting(roomId) {
-        this.rooms[roomId].voting = false;
-        return this.rooms[roomId];
-    }
-
-    castVote(userId, roomId, vote) {
-        const thisRoom = this.rooms[roomId];
-        thisRoom.votes[userId] = vote;
-        console.log("VOTE CAST");
-        //Check if it's the last vote
-        if (
-            Object.keys(thisRoom.votes).length ===
-            Object.keys(thisRoom.users).length
-        ) {
-            thisRoom.voting = false;
-        }
-        return thisRoom;
     }
 
     getRoomIdByUserId(userId) {
@@ -111,6 +82,47 @@ class RoomHandler {
         }
         delete this.users[userId];
         return this.rooms[roomId] ? this.rooms[roomId] : null;
+    }
+
+    exists(roomName) {
+        return Object.keys(this.rooms).find(
+            (roomId) => this.rooms[roomId].name === roomName
+        );
+    }
+
+    // Voting stuff
+
+    startVoting(roomId) {
+        const thisRoom = this.rooms[roomId];
+        thisRoom.voting = true;
+        thisRoom.votes = {};
+        return thisRoom;
+    }
+    stopVoting(roomId) {
+        this.rooms[roomId].voting = false;
+        return this.rooms[roomId];
+    }
+
+    castVote(userId, roomId, vote) {
+        const thisRoom = this.rooms[roomId];
+        thisRoom.votes[userId] = vote;
+        console.log("VOTE CAST");
+        //Check if it's the last vote
+        if (
+            Object.keys(thisRoom.votes).length ===
+            Object.keys(thisRoom.users).length
+        ) {
+            thisRoom.voting = false;
+        }
+        return thisRoom;
+    }
+
+    // Stories stuff
+
+    saveStories(roomId, stories) {
+        const thisRoom = this.rooms[roomId];
+        thisRoom.stories = stories;
+        return thisRoom;
     }
 }
 

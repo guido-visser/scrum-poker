@@ -4,7 +4,8 @@ import UserCard from "./components/UserCard";
 import { RoomObj, UserObj } from "./Types";
 import "./Room.scss";
 import Voting from "./components/Voting";
-import _ from "lodash";
+import _, { Dictionary } from "lodash";
+import Stories from "./components/Stories";
 
 interface RoomProps {
     room: RoomObj;
@@ -13,10 +14,11 @@ interface RoomProps {
 }
 
 interface State {
-    voting: boolean;
+    editStories: boolean;
 }
 
 class Room extends React.PureComponent<RoomProps, State> {
+    state: State = { editStories: false };
     leaving = window.addEventListener("beforeunload", (ev) => {
         ev.preventDefault();
         this.handleLeaveRoom();
@@ -55,6 +57,18 @@ class Room extends React.PureComponent<RoomProps, State> {
         return Math.round((total / totalUsers + Number.EPSILON) * 100) / 100;
     };
 
+    handleEditStories = () => {
+        this.setState({ editStories: true });
+    };
+
+    handleSaveStories = (stories: Dictionary<string>) => {
+        ClientSocket.emit("saveStories", {
+            roomId: this.props.room.id,
+            stories,
+        });
+        this.setState({ editStories: false });
+    };
+
     render() {
         return (
             <div className="room">
@@ -63,33 +77,52 @@ class Room extends React.PureComponent<RoomProps, State> {
                 !this.props.room.voting ? (
                     <div className="result">{this.calculateResult()}</div>
                 ) : null}
-                <div className="users">
-                    {Object.keys(this.props.room.users).map((id) => (
-                        <UserCard
-                            key={id}
-                            user={this.props.room.users[id]}
-                            small={
-                                !this.props.room.voting &&
-                                _.isEmpty(this.props.room.votes)
-                            }
-                            room={this.props.room}
-                        />
-                    ))}
-                </div>
-                {!this.props.room.voting ? (
-                    <button onClick={this.handleStartVoting}>
-                        Start voting
-                    </button>
-                ) : (
-                    <Voting
-                        ids={{
-                            room: this.props.room.id,
-                            user: this.props.user.id,
-                        }}
+                {this.state.editStories ? (
+                    <Stories
+                        onCancel={() => this.setState({ editStories: false })}
+                        onSave={this.handleSaveStories}
                         stories={this.props.room.stories}
-                        votes={this.props.room.votes}
+                        room={this.props.room}
                     />
-                )}
+                ) : null}
+                {!this.state.editStories ? (
+                    <>
+                        <div className="users">
+                            {Object.keys(this.props.room.users).map((id) => (
+                                <UserCard
+                                    key={id}
+                                    user={this.props.room.users[id]}
+                                    small={
+                                        !this.props.room.voting &&
+                                        _.isEmpty(this.props.room.votes)
+                                    }
+                                    room={this.props.room}
+                                />
+                            ))}
+                        </div>
+                        {!this.props.room.voting ? (
+                            <button onClick={this.handleStartVoting}>
+                                Start voting
+                            </button>
+                        ) : (
+                            <Voting
+                                ids={{
+                                    room: this.props.room.id,
+                                    user: this.props.user.id,
+                                }}
+                                stories={this.props.room.stories}
+                                votes={this.props.room.votes}
+                            />
+                        )}
+                        {!this.props.room.voting && this.props.user.isMaster ? (
+                            <div style={{ marginTop: 10 }}>
+                                <button onClick={this.handleEditStories}>
+                                    Edit stories
+                                </button>
+                            </div>
+                        ) : null}
+                    </>
+                ) : null}
             </div>
         );
     }

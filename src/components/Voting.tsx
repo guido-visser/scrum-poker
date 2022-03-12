@@ -31,6 +31,14 @@ class Voting extends PureComponent<VotingProps> {
                           );
                       })
                     : null}
+                <button
+                    className="danger"
+                    onClick={() =>
+                        ClientSocket.emit("stopVoting", this.props.ids.room)
+                    }
+                >
+                    Stop voting
+                </button>
             </div>
         );
     }

@@ -26,8 +26,10 @@ class UserCard extends PureComponent<UserCardProps> {
                             ) : (
                                 this.props.room.votes[this.props.user.id]
                             )
-                        ) : (
+                        ) : this.props.room.voting ? (
                             <Loading />
+                        ) : (
+                            "-"
                         )}
                     </div>
                 ) : null}
