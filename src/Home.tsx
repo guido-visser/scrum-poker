@@ -17,7 +17,7 @@ interface State {
 class Home extends PureComponent<HomeProps, State> {
     constructor(props: HomeProps) {
         super(props);
-        this.state = { username: "Guido", roomName: "S4M", loading: false };
+        this.state = { username: "", roomName: "", loading: false };
     }
 
     handleCreateJoin = () => {

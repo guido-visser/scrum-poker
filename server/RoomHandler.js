@@ -64,9 +64,9 @@ class RoomHandler {
     leaveRoom(roomId, userId) {
         let newUsers = {};
         const thisRoom = this.rooms[roomId];
-        let isMaster = thisRoom?.users[userId]?.isMaster || false;
+        let isMaster = thisRoom.users[userId].isMaster || false;
         if (thisRoom) {
-            Object.keys(thisRoom?.users)
+            Object.keys(thisRoom.users)
                 .filter((user) => user !== userId)
                 .forEach((user) => {
                     newUsers = {

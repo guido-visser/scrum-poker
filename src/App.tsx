@@ -3,6 +3,7 @@ import { getParams } from "./Helper";
 import Home from "./Home";
 import Room from "./Room";
 import { RoomObj, UserObj } from "./Types";
+import _ from "lodash";
 import "./App.scss";
 
 interface State {
@@ -13,7 +14,7 @@ interface State {
 class App extends PureComponent<{}, State> {
     constructor(props: {}) {
         super(props);
-        this.state = { room: getParams?.join || "", user: null };
+        this.state = { room: _.get(getParams, "join", ""), user: null };
     }
 
     handleJoin = (room: RoomObj, user: UserObj) => {
