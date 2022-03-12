@@ -1,30 +1,39 @@
-import { Button, Input } from "antd";
 import React, { PureComponent } from "react";
 import ClientSocket from "./ClientSocket";
+import { RoomObj, UserObj } from "./Types";
 
 interface HomeProps {
     room?: string;
-    onRoomChange?: (room: string) => void;
+    onJoin?: (room: RoomObj, user: UserObj) => void;
+    onUpdate?: (room: RoomObj) => void;
 }
 
 interface State {
     username: string;
     roomName: string;
+    loading: boolean;
 }
 
 class Home extends PureComponent<HomeProps, State> {
     constructor(props: HomeProps) {
         super(props);
-        this.state = { username: "", roomName: "" };
+        this.state = { username: "Guido", roomName: "S4M", loading: false };
     }
 
     handleCreateJoin = () => {
-        const { roomName, username } = this.state;
+        this.setState({ loading: true });
         ClientSocket.connect();
-        ClientSocket.subscribe("createdRoom", (roomId: string) => {
-            this.props.onRoomChange(roomId);
-        });
-        ClientSocket.emit("createJoin", { roomName, username });
+        ClientSocket.emit(
+            "createJoin",
+            {
+                roomName: this.state.roomName,
+                username: this.state.username,
+            },
+            ({ room, user }) => {
+                this.setState({ loading: false });
+                this.props.onJoin(room, user);
+            }
+        );
     };
 
     render() {
@@ -33,30 +42,34 @@ class Home extends PureComponent<HomeProps, State> {
                 <h1 className="app__title">Scrum Poker</h1>
                 <h2>Get the most out of your refinement meeting</h2>
                 <div className="app__form">
-                    <Input
+                    <input
                         className="txtField"
                         placeholder="Name"
-                        size="large"
-                        onChange={(e: any) =>
-                            this.setState({ username: e?.target?.value })
-                        }
+                        type="text"
+                        onChange={(e: any) => {
+                            console.log(e);
+                            this.setState({ username: e?.target?.value });
+                        }}
+                        value={this.state.username}
                     />
                     <hr />
-                    <Input
+                    <input
                         className="txtField"
                         placeholder="Room name"
-                        size="large"
-                        onChange={(e: any) =>
-                            this.setState({ roomName: e?.target?.value })
-                        }
+                        type="text"
+                        onChange={(e: any) => {
+                            console.log(e);
+                            this.setState({ roomName: e?.target?.value });
+                        }}
                         value={this.state.roomName}
                     />
-                    <Button
+                    <button
+                        disabled={this.state.loading}
                         onClick={this.handleCreateJoin}
                         style={{ width: "100%", marginTop: 10 }}
                     >
                         Create / Join
-                    </Button>
+                    </button>
                 </div>
             </div>
         );

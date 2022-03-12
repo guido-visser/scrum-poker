@@ -2,18 +2,24 @@ import React, { PureComponent } from "react";
 import { getParams } from "./Helper";
 import Home from "./Home";
 import Room from "./Room";
+import { RoomObj, UserObj } from "./Types";
 
 interface State {
-    room: string;
+    room: RoomObj;
+    user: UserObj;
 }
 
 class App extends PureComponent<{}, State> {
     constructor(props: {}) {
         super(props);
-        this.state = { room: getParams?.join || "" };
+        this.state = { room: getParams?.join || "", user: null };
     }
 
-    handleSetRoom = (room: string) => {
+    handleJoin = (room: RoomObj, user: UserObj) => {
+        this.setState({ room, user });
+    };
+
+    handleRoomUpdate = (room: RoomObj) => {
         this.setState({ room });
     };
 
@@ -22,9 +28,16 @@ class App extends PureComponent<{}, State> {
         return (
             <div className="app">
                 {!room ? (
-                    <Home onRoomChange={this.handleSetRoom} />
+                    <Home
+                        onUpdate={this.handleRoomUpdate}
+                        onJoin={this.handleJoin}
+                    />
                 ) : (
-                    <Room room={room} />
+                    <Room
+                        room={this.state.room}
+                        user={this.state.user}
+                        onUpdate={this.handleRoomUpdate}
+                    />
                 )}
             </div>
         );

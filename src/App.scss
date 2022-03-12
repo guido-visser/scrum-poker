@@ -2,7 +2,7 @@ $mainColor: #e1e1e1;
 
 .app {
   background: #333;
-  
+  color: $mainColor;
   &__title,h2 {
     color: $mainColor;
     text-align: center;
@@ -13,7 +13,12 @@ $mainColor: #e1e1e1;
     margin: 20px 0; 
   }
 
+  h1{
+    color: $mainColor;
+  }
+
   h2{
+    color: $mainColor;
     font-size: 30px;
     margin-bottom: 50px;
   }

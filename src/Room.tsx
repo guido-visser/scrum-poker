@@ -1,32 +1,39 @@
 import React from "react";
 import "./App.scss";
-import io, { Socket } from "socket.io-client";
-import { Button } from "antd";
+import ClientSocket from "./ClientSocket";
+import { RoomObj, UserObj } from "./Types";
 
 interface RoomProps {
-    room: string;
+    room: RoomObj;
+    user: UserObj;
+    onUpdate: (room: RoomObj) => void;
 }
 
 class Room extends React.PureComponent<RoomProps> {
-    socket: Socket = null;
-
     componentDidMount() {
-        this.socket = io();
+        ClientSocket.subscribe("roomUpdate", (room) => {
+            console.log("ROOM UPDATE", room);
+            this.props.onUpdate(room);
+        });
     }
 
     componentWillUnmount() {
-        this.socket.disconnect();
+        ClientSocket.disconnect();
     }
 
     handleClick = () => {
-        this.socket.emit("message", "world");
+        ClientSocket.emit("roomUpdateTest", this.props.room.id);
     };
 
     render() {
         return (
             <div className="room">
-                <h1>{this.props.room}</h1>
-                Welcome!
+                <h1 onClick={this.handleClick}>{this.props.room?.name}</h1>
+                Welcome{" "}
+                {Object.keys(this.props.room.users)
+                    .map((id) => this.props.room.users[id].username)
+                    .join(", ")}
+                !
             </div>
         );
     }
