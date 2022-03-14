@@ -12,5 +12,6 @@ export interface RoomObj {
 export interface UserObj {
     id: string;
     username: string;
-    isMaster?: boolean;
+    master?: boolean;
+    spectator?: boolean;
 }

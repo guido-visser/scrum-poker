@@ -12,6 +12,7 @@ interface HomeProps {
 interface State {
     username: string;
     roomName: string;
+    spectator: boolean;
     loading: boolean;
     message: string;
     messageType: "error" | "info";
@@ -23,6 +24,7 @@ class Home extends PureComponent<HomeProps, State> {
         this.state = {
             username: "",
             roomName: "",
+            spectator: false,
             loading: false,
             message: "",
             messageType: null,
@@ -45,8 +47,13 @@ class Home extends PureComponent<HomeProps, State> {
             {
                 roomName: this.state.roomName,
                 username: this.state.username,
+                spectator: this.state.spectator,
             },
-            ({ room, user }) => {
+            ({ room, user, message, messageType }) => {
+                if (message && messageType) {
+                    this.setState({ message, messageType, loading: false });
+                    return;
+                }
                 this.setState({ loading: false });
                 this.props.onJoin(room, user);
             }
@@ -82,6 +89,18 @@ class Home extends PureComponent<HomeProps, State> {
                         }
                         value={this.state.roomName}
                     />
+                    <label htmlFor="chkSpectator">
+                        Spectator:{" "}
+                        <input
+                            id="chkSpectator"
+                            type="checkbox"
+                            checked={this.state.spectator}
+                            onChange={(e) =>
+                                this.setState({ spectator: e.target.checked })
+                            }
+                        />
+                    </label>
+
                     <button
                         disabled={this.state.loading}
                         onClick={this.handleCreateJoin}

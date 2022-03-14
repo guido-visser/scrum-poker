@@ -1,8 +1,8 @@
 require("uuid");
 
 class UserHandler {
-    createUser(username, id, isMaster) {
-        return { id, username, isMaster };
+    createUser(username, id, master, spectator) {
+        return { id, username, master, spectator };
     }
 }
 

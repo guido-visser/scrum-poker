@@ -69,10 +69,26 @@ class Room extends React.PureComponent<RoomProps, State> {
         this.setState({ editStories: false });
     };
 
+    handleShowSpectators = () => {
+        const spectators = Object.keys(this.props.room.users)
+            .filter((userId) => this.props.room.users[userId].spectator)
+            .map((user) => this.props.room.users[user].username);
+        alert(spectators.join("\n"));
+    };
+
     render() {
+        const specLength = Object.keys(this.props.room.users).filter(
+            (userId) => this.props.room.users[userId].spectator
+        ).length;
+
         return (
             <div className="room">
                 <h1 className="app__title">{this.props.room?.name}</h1>
+                {specLength ? (
+                    <div onClick={this.handleShowSpectators}>
+                        {specLength + ` spectator${specLength > 1 ? "s" : ""}`}
+                    </div>
+                ) : null}
                 {!_.isEmpty(this.props.room.votes) &&
                 !this.props.room.voting ? (
                     <div className="result">{this.calculateResult()}</div>
@@ -88,23 +104,29 @@ class Room extends React.PureComponent<RoomProps, State> {
                 {!this.state.editStories ? (
                     <>
                         <div className="users">
-                            {Object.keys(this.props.room.users).map((id) => (
-                                <UserCard
-                                    key={id}
-                                    user={this.props.room.users[id]}
-                                    small={
-                                        !this.props.room.voting &&
-                                        _.isEmpty(this.props.room.votes)
-                                    }
-                                    room={this.props.room}
-                                />
-                            ))}
+                            {Object.keys(this.props.room.users)
+                                .filter(
+                                    (user) =>
+                                        !this.props.room.users[user].spectator
+                                )
+                                .map((id) => (
+                                    <UserCard
+                                        key={id}
+                                        user={this.props.room.users[id]}
+                                        small={
+                                            !this.props.room.voting &&
+                                            _.isEmpty(this.props.room.votes)
+                                        }
+                                        room={this.props.room}
+                                    />
+                                ))}
                         </div>
-                        {!this.props.room.voting ? (
+                        {!this.props.room.voting &&
+                        !this.props.user.spectator ? (
                             <button onClick={this.handleStartVoting}>
                                 Start voting
                             </button>
-                        ) : (
+                        ) : !this.props.user.spectator ? (
                             <Voting
                                 ids={{
                                     room: this.props.room.id,
@@ -113,8 +135,10 @@ class Room extends React.PureComponent<RoomProps, State> {
                                 stories={this.props.room.stories}
                                 votes={this.props.room.votes}
                             />
+                        ) : (
+                            "You are a spectator and can't vote"
                         )}
-                        {!this.props.room.voting && this.props.user.isMaster ? (
+                        {!this.props.room.voting && this.props.user.master ? (
                             <div style={{ marginTop: 10 }}>
                                 <button onClick={this.handleEditStories}>
                                     Edit stories

@@ -13,7 +13,7 @@ class RoomHandler {
             [roomId]: {
                 id: roomId,
                 name: roomName,
-                users: { [user.id]: { ...user, isMaster: true } },
+                users: { [user.id]: { ...user, master: true } },
                 stories: {
                     0: "Tekstwijziging",
                     1: "",
@@ -75,7 +75,7 @@ class RoomHandler {
                     };
                 });
             thisRoom.users = newUsers;
-            if (_.isEmpty(newUsers) || isMaster) {
+            if (isMaster || _.isEmpty(newUsers)) {
                 delete this.rooms[roomId];
                 console.log("Room removed");
             }
@@ -110,7 +110,9 @@ class RoomHandler {
         //Check if it's the last vote
         if (
             Object.keys(thisRoom.votes).length ===
-            Object.keys(thisRoom.users).length
+            Object.keys(thisRoom.users).filter(
+                (userId) => !thisRoom.users[userId].spectator
+            ).length
         ) {
             thisRoom.voting = false;
         }
