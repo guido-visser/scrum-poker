@@ -70,3 +70,17 @@ button {
     background:rgba(200, 0,0,0.5)
   }
 }
+
+.error {
+  background: rgba(200, 0,0,0.5);
+}
+.info {
+  background: rgba(0, 0,200,0.5);
+}
+
+.message {
+  border-radius: 5px;
+  margin-top: 10px;
+  padding: 5px;
+  text-align: center;
+}

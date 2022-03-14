@@ -1,6 +1,7 @@
 import React, { PureComponent } from "react";
 import ClientSocket from "./ClientSocket";
 import { RoomObj, UserObj } from "./Types";
+import cn from "classnames";
 
 interface HomeProps {
     room?: string;
@@ -12,15 +13,31 @@ interface State {
     username: string;
     roomName: string;
     loading: boolean;
+    message: string;
+    messageType: "error" | "info";
 }
 
 class Home extends PureComponent<HomeProps, State> {
     constructor(props: HomeProps) {
         super(props);
-        this.state = { username: "", roomName: "", loading: false };
+        this.state = {
+            username: "",
+            roomName: "",
+            loading: false,
+            message: "",
+            messageType: null,
+        };
     }
 
     handleCreateJoin = () => {
+        //Simple validation
+        if (this.state.roomName === "" || this.state.username === "") {
+            this.setState({
+                message: "Please fill in all fields",
+                messageType: "error",
+            });
+            return;
+        }
         this.setState({ loading: true });
         ClientSocket.connect();
         ClientSocket.emit(
@@ -36,6 +53,9 @@ class Home extends PureComponent<HomeProps, State> {
         );
     };
 
+    handlePressEnter = (e: any) =>
+        e.keyCode === 13 ? this.handleCreateJoin() : null;
+
     render() {
         return (
             <div className="home">
@@ -46,20 +66,20 @@ class Home extends PureComponent<HomeProps, State> {
                         className="txtField"
                         placeholder="Name"
                         type="text"
-                        onChange={(e: any) => {
-                            console.log(e);
-                            this.setState({ username: e?.target?.value });
-                        }}
+                        onKeyDown={this.handlePressEnter}
+                        onChange={(e: any) =>
+                            this.setState({ username: e?.target?.value })
+                        }
                         value={this.state.username}
                     />
                     <input
                         className="txtField"
                         placeholder="Room name"
                         type="text"
-                        onChange={(e: any) => {
-                            console.log(e);
-                            this.setState({ roomName: e?.target?.value });
-                        }}
+                        onKeyDown={this.handlePressEnter}
+                        onChange={(e: any) =>
+                            this.setState({ roomName: e?.target?.value })
+                        }
                         value={this.state.roomName}
                     />
                     <button
@@ -69,6 +89,16 @@ class Home extends PureComponent<HomeProps, State> {
                     >
                         Create / Join
                     </button>
+                    {this.state.message ? (
+                        <div
+                            className={cn("message", {
+                                error: this.state.messageType === "error",
+                                info: this.state.messageType === "info",
+                            })}
+                        >
+                            {this.state.message}
+                        </div>
+                    ) : null}
                 </div>
             </div>
         );
