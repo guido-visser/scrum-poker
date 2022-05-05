@@ -26,7 +26,6 @@ class Room extends React.PureComponent<RoomProps, State> {
 
     componentDidMount() {
         ClientSocket.subscribe("roomUpdate", (room) => {
-            console.log("ROOM UPDATE", room);
             this.props.onUpdate(room);
         });
     }
@@ -69,76 +68,71 @@ class Room extends React.PureComponent<RoomProps, State> {
         this.setState({ editStories: false });
     };
 
-    handleShowSpectators = () => {
-        const spectators = Object.keys(this.props.room.users)
-            .filter((userId) => this.props.room.users[userId].spectator)
-            .map((user) => this.props.room.users[user].username);
-        alert(spectators.join("\n"));
-    };
-
     render() {
-        const specLength = Object.keys(this.props.room.users).filter(
-            (userId) => this.props.room.users[userId].spectator
-        ).length;
+        const { room, user } = this.props;
+        const specs = Object.keys(room.spectators).map((id) => {
+            const spec = room.spectators[id];
+            return spec.username;
+        });
+
+        const spectators =
+            specs.length > 1
+                ? specs.slice(0, -1).join(", ") + " and " + specs.slice(-1)
+                : specs.join(", ");
 
         return (
             <div className="room">
-                <h1 className="app__title">{this.props.room?.name}</h1>
-                {specLength ? (
-                    <div onClick={this.handleShowSpectators}>
-                        {specLength + ` spectator${specLength > 1 ? "s" : ""}`}
-                    </div>
+                <h1 className="app__title">{room?.name}</h1>
+                {spectators ? (
+                    <div>{`${spectators} ${
+                        specs.length > 1 ? "are" : "is"
+                    } spectating`}</div>
                 ) : null}
-                {!_.isEmpty(this.props.room.votes) &&
-                !this.props.room.voting ? (
+                {!_.isEmpty(room.votes) && !room.voting ? (
                     <div className="result">{this.calculateResult()}</div>
                 ) : null}
                 {this.state.editStories ? (
                     <Stories
                         onCancel={() => this.setState({ editStories: false })}
                         onSave={this.handleSaveStories}
-                        stories={this.props.room.stories}
-                        room={this.props.room}
+                        stories={room.stories}
+                        room={room}
                     />
                 ) : null}
                 {!this.state.editStories ? (
                     <>
                         <div className="users">
-                            {Object.keys(this.props.room.users)
-                                .filter(
-                                    (user) =>
-                                        !this.props.room.users[user].spectator
-                                )
+                            {Object.keys(room.users)
+                                .filter((user) => !room.users[user].spectator)
                                 .map((id) => (
                                     <UserCard
                                         key={id}
-                                        user={this.props.room.users[id]}
+                                        user={room.users[id]}
                                         small={
-                                            !this.props.room.voting &&
-                                            _.isEmpty(this.props.room.votes)
+                                            !room.voting &&
+                                            _.isEmpty(room.votes)
                                         }
-                                        room={this.props.room}
+                                        room={room}
                                     />
                                 ))}
                         </div>
-                        {!this.props.room.voting &&
-                        !this.props.user.spectator ? (
+                        {!room.voting && !user.spectator ? (
                             <button onClick={this.handleStartVoting}>
                                 Start voting
                             </button>
-                        ) : !this.props.user.spectator ? (
+                        ) : !user.spectator ? (
                             <Voting
                                 ids={{
-                                    room: this.props.room.id,
-                                    user: this.props.user.id,
+                                    room: room.id,
+                                    user: user.id,
                                 }}
-                                stories={this.props.room.stories}
-                                votes={this.props.room.votes}
+                                stories={room.stories}
+                                votes={room.votes}
                             />
                         ) : (
                             "You are a spectator and can't vote"
                         )}
-                        {!this.props.room.voting && this.props.user.master ? (
+                        {!room.voting && user.master ? (
                             <div style={{ marginTop: 10 }}>
                                 <button onClick={this.handleEditStories}>
                                     Edit stories

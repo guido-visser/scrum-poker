@@ -7,6 +7,7 @@ export interface RoomObj {
     votes: Dictionary<number>;
     voting: boolean;
     stories: Dictionary<string>;
+    spectators: Dictionary<UserObj>;
 }
 
 export interface UserObj {
@@ -14,4 +15,5 @@ export interface UserObj {
     username: string;
     master?: boolean;
     spectator?: boolean;
+    status: "online" | "offline";
 }

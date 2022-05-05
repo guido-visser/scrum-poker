@@ -4,6 +4,11 @@ const _ = require("lodash");
 class RoomHandler {
     rooms = {};
     users = {};
+    spectators = {};
+
+    cleanup() {
+        setTimeout(() => {}, 30000);
+    }
 
     // Room stuff
 
@@ -27,6 +32,7 @@ class RoomHandler {
                 },
                 voting: false,
                 votes: {},
+                spectators: {},
             },
         };
         this.rooms = {
@@ -38,7 +44,7 @@ class RoomHandler {
     }
 
     getRoomIdByUserId(userId) {
-        return this.users[userId];
+        return this.users[userId] || this.spectators[userId];
     }
 
     getRoom(roomId) {
@@ -46,41 +52,68 @@ class RoomHandler {
     }
 
     joinRoom(roomId, user) {
-        const thisRoom = this.rooms[roomId];
-        this.rooms = {
-            ...this.rooms,
-            [roomId]: {
+        let thisRoom = this.rooms[roomId];
+        if (!user.spectator) {
+            thisRoom = {
                 ...thisRoom,
                 users: {
                     ...thisRoom.users,
                     [user.id]: user,
                 },
-            },
-        };
-        this.users[user.id] = roomId;
-        return this.rooms[roomId];
+            };
+            this.users[user.id] = roomId;
+        } else {
+            thisRoom = {
+                ...thisRoom,
+                spectators: {
+                    ...thisRoom.spectators,
+                    [user.id]: user,
+                },
+            };
+            this.spectators[user.id] = roomId;
+        }
+        this.rooms[roomId] = thisRoom;
+        return thisRoom;
     }
 
     leaveRoom(roomId, userId) {
         let newUsers = {};
         const thisRoom = this.rooms[roomId];
         if (thisRoom) {
-            let isMaster = _.get(thisRoom, `users[${userId}].isMaster`, false);
-            Object.keys(thisRoom.users)
-                .filter((user) => user !== userId)
-                .forEach((user) => {
-                    newUsers = {
-                        ...newUsers,
-                        [user]: thisRoom.users[user],
-                    };
-                });
-            thisRoom.users = newUsers;
-            if (isMaster || _.isEmpty(newUsers)) {
-                delete this.rooms[roomId];
-                console.log("Room removed");
+            const spectator = !!_.get(thisRoom, `spectators[${userId}]`, false);
+            if (!spectator) {
+                const isMaster = _.get(
+                    thisRoom,
+                    `users[${userId}].isMaster`,
+                    false
+                );
+                Object.keys(thisRoom.users)
+                    //.filter((user) => user !== userId)
+                    .forEach((user) => {
+                        if (user === userId) {
+                            newUsers = {
+                                ...newUsers,
+                                [user]: {
+                                    ...thisRoom.users[user],
+                                    status: "offline",
+                                },
+                            };
+                        } else {
+                            newUsers = {
+                                ...newUsers,
+                                [user]: thisRoom.users[user],
+                            };
+                        }
+                    });
+                thisRoom.users = newUsers;
+                if (isMaster || _.isEmpty(newUsers)) {
+                    delete this.rooms[roomId];
+                    console.log("Room removed");
+                }
+            } else {
             }
         }
-        delete this.users[userId];
+        this.users[userId] = thisRoom.users[userId];
         return this.rooms[roomId] ? this.rooms[roomId] : null;
     }
 
@@ -93,7 +126,7 @@ class RoomHandler {
     // Voting stuff
 
     startVoting(roomId) {
-        const thisRoom = this.rooms[roomId];
+        const thisRoom = this.getRoom(roomId);
         thisRoom.voting = true;
         thisRoom.votes = {};
         return thisRoom;
