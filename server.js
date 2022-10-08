@@ -4,13 +4,14 @@ const server = http.createServer(app);
 const { Server } = require("socket.io");
 const UserHandler = require("./server/UserHandler");
 const RoomHandler = require("./server/RoomHandler");
-const io = new Server(server);
+const io = new Server(server, { port: 8081 });
 
 io.on("connection", (socket) => {
     console.log("a user connected");
     socket.on("disconnect", () => {
         console.log("user disconnected");
-        leaveRoom(socket.id, RoomHandler.getRoomIdByUserId(socket.id));
+        const userId = UserHandler.getUserIdBySocketId(socket.id);
+        leaveRoom(userId, RoomHandler.getRoomIdByUserId(userId));
     });
 
     // Room stuff
@@ -27,6 +28,10 @@ io.on("connection", (socket) => {
                 spectator
             );
             const room = RoomHandler.joinRoom(roomId, user);
+            if (room.error) {
+                if (callback) callback(room);
+                return;
+            }
             socket.join(room.id);
             if (callback) callback({ room, user });
             io.to(room.id).emit("roomUpdate", room);
@@ -48,7 +53,10 @@ io.on("connection", (socket) => {
     });
 
     const leaveRoom = (userId, roomId) => {
-        io.to(roomId).emit("roomUpdate", RoomHandler.leaveRoom(roomId, userId));
+        io.to(roomId).emit(
+            "roomUpdate",
+            RoomHandler.leaveRoom(roomId, userId, io)
+        );
         socket.leave(roomId);
     };
 
