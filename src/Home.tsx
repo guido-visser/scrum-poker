@@ -2,6 +2,7 @@ import React, { PureComponent } from "react";
 import ClientSocket from "./ClientSocket";
 import { RoomObj, UserObj } from "./Types";
 import cn from "classnames";
+import { LsWrapper } from "./Helper";
 
 interface HomeProps {
     room?: string;
@@ -21,9 +22,11 @@ interface State {
 class Home extends PureComponent<HomeProps, State> {
     constructor(props: HomeProps) {
         super(props);
+        const room = LsWrapper.getItem("sp-room");
+        const user = LsWrapper.getItem("sp-user");
         this.state = {
-            username: "",
-            roomName: "",
+            username: user?.username || "",
+            roomName: room?.name || "",
             spectator: false,
             loading: false,
             message: "",
@@ -32,6 +35,10 @@ class Home extends PureComponent<HomeProps, State> {
     }
 
     handleCreateJoin = () => {
+        if (this.state.loading) {
+            return;
+        }
+
         //Simple validation
         if (this.state.roomName === "" || this.state.username === "") {
             this.setState({
@@ -49,12 +56,17 @@ class Home extends PureComponent<HomeProps, State> {
                 username: this.state.username,
                 spectator: this.state.spectator,
             },
-            ({ room, user, message, messageType }) => {
+            ({ room, user, message, messageType, error }) => {
+                if (error) {
+                    this.setState({ message: error, messageType: "error" });
+                }
                 if (message && messageType) {
                     this.setState({ message, messageType, loading: false });
                     return;
                 }
                 this.setState({ loading: false });
+                LsWrapper.setItem("sp-user", user);
+                LsWrapper.setItem("sp-room", { id: room.id, name: room.name });
                 this.props.onJoin(room, user);
             }
         );
