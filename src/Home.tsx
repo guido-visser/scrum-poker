@@ -56,7 +56,10 @@ class Home extends PureComponent<HomeProps, State> {
                 username: this.state.username,
                 spectator: this.state.spectator,
             },
-            ({ room, user, message, messageType }) => {
+            ({ room, user, message, messageType, error }) => {
+                if (error) {
+                    this.setState({ message: error, messageType: "error" });
+                }
                 if (message && messageType) {
                     this.setState({ message, messageType, loading: false });
                     return;

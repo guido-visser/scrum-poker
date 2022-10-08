@@ -28,12 +28,12 @@ class UserCard extends PureComponent<UserCardProps> {
                 </div>
                 {!this.props.small && user.status === "online" ? (
                     <div className="user-card__result">
-                        {this.props.room.votes[this.props.user.id] !==
+                        {this.props.room.votes[this.props.user.username] !==
                         undefined ? (
                             this.props.room.voting ? (
                                 "✔"
                             ) : (
-                                this.props.room.votes[this.props.user.id]
+                                this.props.room.votes[this.props.user.username]
                             )
                         ) : this.props.room.voting ? (
                             <Loading />

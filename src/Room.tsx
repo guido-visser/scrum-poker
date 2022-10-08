@@ -39,6 +39,7 @@ class Room extends React.PureComponent<RoomProps, State> {
             roomId: this.props.room.id,
             userId: this.props.user.id,
         });
+        ClientSocket.unsubscribe(this.props.room.id);
         ClientSocket.disconnect();
         this.props.onUpdate(null);
     };
@@ -124,7 +125,7 @@ class Room extends React.PureComponent<RoomProps, State> {
                             <Voting
                                 ids={{
                                     room: room.id,
-                                    user: user.id,
+                                    user: user.username,
                                 }}
                                 stories={room.stories}
                                 votes={room.votes}

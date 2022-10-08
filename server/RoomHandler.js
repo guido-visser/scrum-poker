@@ -18,7 +18,7 @@ class RoomHandler {
             [roomId]: {
                 id: roomId,
                 name: roomName,
-                users: { [user.id]: { ...user, master: true } },
+                users: { [user.username]: { ...user, master: true } },
                 stories: {
                     0: "Tekstwijziging",
                     1: "",
@@ -39,7 +39,7 @@ class RoomHandler {
             ...this.rooms,
             ...newRoom,
         };
-        this.users[user.id] = roomId;
+        this.users[user.username] = roomId;
         return newRoom[roomId];
     }
 
@@ -53,68 +53,105 @@ class RoomHandler {
 
     joinRoom(roomId, user) {
         let thisRoom = this.rooms[roomId];
+        //If the user is not a spectator and does not exist in the room
         if (!user.spectator) {
+            //Check if user already exists
+            if (thisRoom.users[user.username]) {
+                if (thisRoom.users[user.username].status === "online") {
+                    return {
+                        error: "User already exists, please use another username",
+                    };
+                }
+            }
             thisRoom = {
                 ...thisRoom,
                 users: {
                     ...thisRoom.users,
-                    [user.id]: user,
+                    [user.username]: user,
                 },
             };
-            this.users[user.id] = roomId;
+            this.users[user.username] = roomId;
         } else {
             thisRoom = {
                 ...thisRoom,
                 spectators: {
                     ...thisRoom.spectators,
-                    [user.id]: user,
+                    [user.username]: user,
                 },
             };
-            this.spectators[user.id] = roomId;
+            this.spectators[user.username] = roomId;
         }
         this.rooms[roomId] = thisRoom;
         return thisRoom;
     }
 
-    leaveRoom(roomId, userId) {
+    leaveRoom(roomId, userId, io, final) {
         let newUsers = {};
+        let newSpectators = {};
         const thisRoom = this.rooms[roomId];
-        if (thisRoom) {
-            const spectator = !!_.get(thisRoom, `spectators[${userId}]`, false);
-            if (!spectator) {
-                const isMaster = _.get(
-                    thisRoom,
-                    `users[${userId}].isMaster`,
-                    false
-                );
-                Object.keys(thisRoom.users)
-                    //.filter((user) => user !== userId)
-                    .forEach((user) => {
-                        if (user === userId) {
-                            newUsers = {
-                                ...newUsers,
-                                [user]: {
-                                    ...thisRoom.users[user],
-                                    status: "offline",
-                                },
-                            };
-                        } else {
-                            newUsers = {
-                                ...newUsers,
-                                [user]: thisRoom.users[user],
-                            };
-                        }
-                    });
-                thisRoom.users = newUsers;
-                if (isMaster || _.isEmpty(newUsers)) {
-                    delete this.rooms[roomId];
-                    console.log("Room removed");
-                }
-            } else {
-            }
+
+        if (!thisRoom) {
+            console.log("Trying to leave a room that doesn't exist");
+            return;
         }
-        this.users[userId] = thisRoom.users[userId];
-        return this.rooms[roomId] ? this.rooms[roomId] : null;
+
+        const spectator = !!_.get(thisRoom, `spectators[${userId}]`, false);
+        if (spectator) {
+            Object.keys(thisRoom.spectators).forEach((spectator) => {
+                const thisSpectator = thisRoom.spectators[spectator];
+                if (spectator !== userId) {
+                    newSpectators = {
+                        ...newSpectators,
+                        [spectator]: thisSpectator,
+                    };
+                }
+            });
+            this.rooms[roomId].spectators = newSpectators;
+            return this.rooms[roomId];
+        }
+
+        const isMaster = _.get(thisRoom, `users[${userId}].master`, false);
+        Object.keys(thisRoom.users).forEach((user) => {
+            const thisUser = thisRoom.users[user];
+            if (user === userId) {
+                if (thisUser.status === "offline") {
+                    newUsers = { ...newUsers };
+                    return;
+                }
+                newUsers = {
+                    ...newUsers,
+                    [user]: {
+                        ...thisUser,
+                        status: "offline",
+                    },
+                };
+            } else {
+                newUsers = {
+                    ...newUsers,
+                    [user]: thisUser,
+                };
+            }
+        });
+        thisRoom.users = newUsers;
+        if (isMaster || _.isEmpty(newUsers)) {
+            io.to(roomId).emit("roomUpdate", null);
+            delete this.rooms[roomId];
+            console.log("Room removed");
+            return;
+        }
+
+        //After 20 seconds, remove
+        if (!final) {
+            setTimeout(() => {
+                if (this.rooms[roomId].users[userId]?.status === "offline") {
+                    io.to(roomId).emit(
+                        "roomUpdate",
+                        this.leaveRoom(roomId, userId, io, true)
+                    );
+                }
+            }, 1000 * 20);
+        }
+        return this.rooms[roomId] || null;
     }
 
     exists(roomName) {
@@ -143,9 +180,7 @@ class RoomHandler {
         //Check if it's the last vote
         if (
             Object.keys(thisRoom.votes).length ===
-            Object.keys(thisRoom.users).filter(
-                (userId) => !thisRoom.users[userId].spectator
-            ).length
+            Object.keys(thisRoom.users).length
         ) {
             thisRoom.voting = false;
         }

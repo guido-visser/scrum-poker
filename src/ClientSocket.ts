@@ -4,7 +4,8 @@ class ClientSocket {
     socket: any = null;
 
     connect() {
-        this.socket = io();
+        this.socket = io({ port: 8081 });
+        console.log(this.socket);
     }
 
     disconnect() {
@@ -21,6 +22,10 @@ class ClientSocket {
         callback?: (thing: any) => void
     ) {
         this.socket.on(id, func, callback ? callback : undefined);
+    }
+
+    unsubscribe(id: string) {
+        this.socket.off(id);
     }
 }
 
