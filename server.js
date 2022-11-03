@@ -91,6 +91,10 @@ io.on("connection", (socket) => {
     });
 });
 
+process.on('SIGINT', function() {
+    process.exit(0);
+});
+
 const PORT = process.env.PORT || 8080;
 
 server.listen(PORT);
