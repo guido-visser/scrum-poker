@@ -6,6 +6,9 @@ import "./Room.scss";
 import Voting from "./components/Voting";
 import _, { Dictionary } from "lodash";
 import Stories from "./components/Stories";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+dayjs.extend(relativeTime);
 
 interface RoomProps {
     room: RoomObj;
@@ -15,10 +18,11 @@ interface RoomProps {
 
 interface State {
     editStories: boolean;
+    lastVoteTime: number;
 }
 
 class Room extends React.PureComponent<RoomProps, State> {
-    state: State = { editStories: false };
+    state: State = { editStories: false, lastVoteTime: 0 };
     leaving = window.addEventListener("beforeunload", (ev) => {
         ev.preventDefault();
         this.handleLeaveRoom();
@@ -28,6 +32,10 @@ class Room extends React.PureComponent<RoomProps, State> {
         ClientSocket.subscribe("roomUpdate", (room) => {
             this.props.onUpdate(room);
         });
+
+        setInterval(() => {
+            this.setState({ lastVoteTime: this.state.lastVoteTime + 1 });
+        }, 60000);
     }
 
     componentWillUnmount() {
@@ -88,6 +96,11 @@ class Room extends React.PureComponent<RoomProps, State> {
                     <div>{`${spectators} ${
                         specs.length > 1 ? "are" : "is"
                     } spectating`}</div>
+                ) : null}
+                {room.lastVoteTime ? (
+                    <div className="last_vote">
+                        Last vote: {dayjs(room.lastVoteTime).fromNow()}
+                    </div>
                 ) : null}
                 {!_.isEmpty(room.votes) && !room.voting ? (
                     <div className="result">{this.calculateResult()}</div>

@@ -8,6 +8,7 @@ export interface RoomObj {
     voting: boolean;
     stories: Dictionary<string>;
     spectators: Dictionary<UserObj>;
+    lastVoteTime?: string;
 }
 
 export interface UserObj {

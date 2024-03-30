@@ -143,7 +143,7 @@ class RoomHandler {
         //After 20 seconds, remove
         if (!final) {
             setTimeout(() => {
-                if (this.rooms[roomId].users[userId]?.status === "offline") {
+                if (this.rooms[roomId]?.users[userId]?.status === "offline") {
                     io.to(roomId).emit(
                         "roomUpdate",
                         this.leaveRoom(roomId, userId, io, true)
@@ -175,6 +175,8 @@ class RoomHandler {
 
     castVote(userId, roomId, vote) {
         const thisRoom = this.rooms[roomId];
+        if (!thisRoom) return;
+
         thisRoom.votes[userId] = vote;
         console.log("VOTE CAST");
         //Check if it's the last vote
@@ -183,6 +185,7 @@ class RoomHandler {
             Object.keys(thisRoom.users).length
         ) {
             thisRoom.voting = false;
+            thisRoom.lastVoteTime = new Date();
         }
         return thisRoom;
     }
