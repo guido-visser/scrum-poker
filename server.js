@@ -1,102 +1,198 @@
 const app = require("./server/express");
 const http = require("http");
-const server = http.createServer(app);
+const path = require("path");
 const { Server } = require("socket.io");
-const UserHandler = require("./server/UserHandler");
 const RoomHandler = require("./server/RoomHandler");
-const io = new Server(server, { port: 8081 });
+const UserHandler = require("./server/UserHandler");
+
+app.get("/api/rooms/:roomId", (req, res) => {
+    const room = RoomHandler.getRoomSummary(req.params.roomId);
+    if (!room) {
+        res.status(404).json({ error: "Room not found" });
+        return;
+    }
+
+    res.json(room);
+});
+
+app.use((req, res) => {
+    res.sendFile(path.join(app.locals.buildPath, "index.html"));
+});
+
+const server = http.createServer(app);
+const io = new Server(server);
+
+const emitRoomUpdate = (roomId, room) => {
+    io.to(roomId).emit("roomUpdate", room);
+};
+
+const getSession = (socket) => socket.data.session || null;
+
+const clearSession = (socket) => {
+    UserHandler.purgeUser(socket.id);
+    delete socket.data.session;
+};
+
+const leaveCurrentRoom = (socket, final = false) => {
+    const session = getSession(socket);
+    if (!session?.roomId || !session?.username) {
+        return;
+    }
+
+    const updatedRoom = RoomHandler.leaveRoom(
+        session.roomId,
+        session.username,
+        io,
+        final
+    );
+    emitRoomUpdate(session.roomId, updatedRoom);
+    socket.leave(session.roomId);
+    clearSession(socket);
+};
 
 io.on("connection", (socket) => {
-    console.log("a user connected");
     socket.on("disconnect", () => {
-        console.log("user disconnected");
-        const userId = UserHandler.getUserIdBySocketId(socket.id);
-        leaveRoom(userId, RoomHandler.getRoomIdByUserId(userId));
+        leaveCurrentRoom(socket);
     });
-
-    // Room stuff
 
     socket.on("createJoin", (obj, callback) => {
-        const { roomName, username, spectator } = obj;
-        const roomId = RoomHandler.exists(roomName);
-        if (roomId) {
-            //Join the room
-            const user = UserHandler.createUser(
-                username,
-                socket.id,
-                false,
-                spectator
-            );
-            const room = RoomHandler.joinRoom(roomId, user);
-            if (room.error) {
-                if (callback) callback(room);
-                return;
-            }
-            socket.join(room.id);
-            if (callback) callback({ room, user });
-            io.to(room.id).emit("roomUpdate", room);
-        } else {
-            if (spectator) {
-                callback({
-                    message: "Can't spectate a room that doesn't exist",
-                    messageType: "error",
-                });
-                return;
-            }
-            //Create the room
-            const user = UserHandler.createUser(username, socket.id, true);
-            const room = RoomHandler.createRoom(roomName, user);
-            socket.join(room.id);
-            if (callback) callback({ room, user });
-            io.to(room.id).emit("roomUpdate", room);
+        const roomName = obj?.roomName?.trim();
+        const username = obj?.username?.trim();
+        const requestedRoomId = obj?.roomId?.trim();
+        const spectator = Boolean(obj?.spectator);
+
+        if (!roomName || !username) {
+            callback?.({
+                message: "Please fill in all fields",
+                messageType: "error",
+            });
+            return;
         }
+
+        if (getSession(socket)) {
+            leaveCurrentRoom(socket, true);
+        }
+
+        const roomId = RoomHandler.getRoom(requestedRoomId)
+            ? requestedRoomId
+            : RoomHandler.exists(roomName);
+
+        if (roomId) {
+            const user = {
+                username,
+                spectator,
+                status: "online",
+            };
+            const room = RoomHandler.joinRoom(roomId, user);
+            if (room?.error) {
+                callback?.(room);
+                return;
+            }
+
+            const roomUser = spectator
+                ? room.spectators[username]
+                : room.users[username];
+            const session = {
+                roomId: room.id,
+                username,
+                spectator,
+                master: Boolean(roomUser?.master),
+            };
+
+            UserHandler.bindUser(socket.id, session);
+            socket.data.session = session;
+            socket.join(room.id);
+            callback?.({ room, user: roomUser });
+            emitRoomUpdate(room.id, room);
+            return;
+        }
+
+        if (spectator) {
+            callback?.({
+                message: "Can't spectate a room that doesn't exist",
+                messageType: "error",
+            });
+            return;
+        }
+
+        const user = {
+            username,
+            master: true,
+            status: "online",
+        };
+        const room = RoomHandler.createRoom(roomName, user);
+        const session = {
+            roomId: room.id,
+            username,
+            spectator: false,
+            master: true,
+        };
+
+        UserHandler.bindUser(socket.id, session);
+        socket.data.session = session;
+        socket.join(room.id);
+        callback?.({ room, user: room.users[username] });
+        emitRoomUpdate(room.id, room);
     });
 
-    const leaveRoom = (userId, roomId) => {
-        io.to(roomId).emit(
-            "roomUpdate",
-            RoomHandler.leaveRoom(roomId, userId, io)
+    socket.on("leaveRoom", () => {
+        leaveCurrentRoom(socket, true);
+    });
+
+    socket.on("startVoting", () => {
+        const session = getSession(socket);
+        if (!session) {
+            return;
+        }
+
+        emitRoomUpdate(
+            session.roomId,
+            RoomHandler.startVoting(session.roomId, session.username)
         );
-        socket.leave(roomId);
-    };
-
-    socket.on("leaveRoom", ({ roomId, userId }) => {
-        leaveRoom(userId, roomId);
     });
 
-    // Vote stuff
+    socket.on("stopVoting", () => {
+        const session = getSession(socket);
+        if (!session) {
+            return;
+        }
 
-    socket.on("startVoting", (roomId) => {
-        io.to(roomId).emit("roomUpdate", RoomHandler.startVoting(roomId));
-    });
-
-    socket.on("stopVoting", (roomId) => {
-        io.to(roomId).emit("roomUpdate", RoomHandler.stopVoting(roomId));
-    });
-
-    socket.on("castVote", ({ roomId, userId, vote }) => {
-        io.to(roomId).emit(
-            "roomUpdate",
-            RoomHandler.castVote(userId, roomId, vote)
+        emitRoomUpdate(
+            session.roomId,
+            RoomHandler.stopVoting(session.roomId, session.username)
         );
     });
 
-    // Story stuff
+    socket.on("castVote", ({ vote }) => {
+        const session = getSession(socket);
+        if (!session) {
+            return;
+        }
 
-    socket.on("saveStories", ({ roomId, stories }) => {
-        io.to(roomId).emit(
-            "roomUpdate",
-            RoomHandler.saveStories(roomId, stories)
+        emitRoomUpdate(
+            session.roomId,
+            RoomHandler.castVote(session.username, session.roomId, vote)
+        );
+    });
+
+    socket.on("saveStories", ({ stories }) => {
+        const session = getSession(socket);
+        if (!session) {
+            return;
+        }
+
+        emitRoomUpdate(
+            session.roomId,
+            RoomHandler.saveStories(session.roomId, session.username, stories)
         );
     });
 });
 
-process.on('SIGINT', function() {
+process.on("SIGINT", () => {
     process.exit(0);
 });
 
 const PORT = process.env.PORT || 8080;
-
 server.listen(PORT);
 
 console.log(`Listening on port: ${PORT}`);

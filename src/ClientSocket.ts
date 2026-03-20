@@ -1,31 +1,32 @@
-import io from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 
 class ClientSocket {
-    socket: any = null;
+    socket: Socket | null = null;
 
     connect() {
-        this.socket = io({ port: 8081 });
-        console.log(this.socket);
+        if (this.socket?.connected) {
+            return this.socket;
+        }
+
+        this.socket = io({ autoConnect: true });
+        return this.socket;
     }
 
     disconnect() {
-        this.socket.disconnect();
+        this.socket?.disconnect();
+        this.socket = null;
     }
 
-    emit(id: string, thing?: any, callback?: (thing: any) => void) {
-        this.socket.emit(id, thing, callback);
+    emit<T>(id: string, payload?: T, callback?: (response: any) => void) {
+        this.socket?.emit(id, payload, callback);
     }
 
-    subscribe(
-        id: string,
-        func: (thing: any) => void,
-        callback?: (thing: any) => void
-    ) {
-        this.socket.on(id, func, callback ? callback : undefined);
+    subscribe<T>(id: string, func: (payload: T) => void) {
+        this.socket?.on(id, func);
     }
 
     unsubscribe(id: string) {
-        this.socket.off(id);
+        this.socket?.off(id);
     }
 }
 

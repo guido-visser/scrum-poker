@@ -1,45 +1,78 @@
 import React, { PureComponent } from "react";
-import { getParams } from "./Helper";
+import ClientSocket from "./ClientSocket";
 import Home from "./Home";
+import { LsWrapper, setRoomUrl } from "./Helper";
 import Room from "./Room";
 import { RoomObj, UserObj } from "./Types";
-import _ from "lodash";
 import "./App.scss";
 
 interface State {
-    room: RoomObj;
-    user: UserObj;
+    room: RoomObj | null;
+    user: UserObj | null;
 }
 
-class App extends PureComponent<{}, State> {
-    constructor(props: {}) {
-        super(props);
-        this.state = { room: _.get(getParams, "join", ""), user: null };
-    }
+class App extends PureComponent<Record<string, never>, State> {
+    state: State = {
+        room: null,
+        user: null,
+    };
 
     handleJoin = (room: RoomObj, user: UserObj) => {
+        setRoomUrl(room.id);
+        LsWrapper.setItem("sp-user", user);
+        LsWrapper.setItem("sp-room", { id: room.id, name: room.name });
         this.setState({ room, user });
     };
 
-    handleRoomUpdate = (room: RoomObj) => {
-        this.setState({ room });
+    handleRoomUpdate = (room: RoomObj | null) => {
+        this.setState((state) => {
+            if (!room || !state.user) {
+                ClientSocket.disconnect();
+                setRoomUrl(null);
+                LsWrapper.removeItem("sp-user");
+                LsWrapper.removeItem("sp-room");
+                return {
+                    room: null,
+                    user: null,
+                };
+            }
+
+            const updatedUser =
+                room.users[state.user.username] ??
+                room.spectators[state.user.username] ??
+                null;
+
+            if (!updatedUser) {
+                ClientSocket.disconnect();
+                setRoomUrl(null);
+                LsWrapper.removeItem("sp-user");
+                LsWrapper.removeItem("sp-room");
+                return {
+                    room: null,
+                    user: null,
+                };
+            }
+
+            setRoomUrl(room.id);
+            LsWrapper.setItem("sp-user", updatedUser);
+            LsWrapper.setItem("sp-room", { id: room.id, name: room.name });
+
+            return {
+                room,
+                user: updatedUser,
+            };
+        });
     };
 
     render() {
-        const { room } = this.state;
+        const { room, user } = this.state;
+
         return (
             <div className="app">
-                {!room ? (
-                    <Home
-                        onUpdate={this.handleRoomUpdate}
-                        onJoin={this.handleJoin}
-                    />
+                {!room || !user ? (
+                    <Home onUpdate={this.handleRoomUpdate} onJoin={this.handleJoin} />
                 ) : (
-                    <Room
-                        room={this.state.room}
-                        user={this.state.user}
-                        onUpdate={this.handleRoomUpdate}
-                    />
+                    <Room room={room} user={user} onUpdate={this.handleRoomUpdate} />
                 )}
             </div>
         );

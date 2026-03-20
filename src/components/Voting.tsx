@@ -1,44 +1,37 @@
 import { Dictionary } from "lodash";
 import React, { PureComponent } from "react";
 import ClientSocket from "../ClientSocket";
+import { UserObj } from "../Types";
 import "./Voting.scss";
 
 interface VotingProps {
+    roomId: string;
+    user: UserObj;
     stories: Dictionary<string>;
-    ids: Ids;
     votes: Dictionary<number>;
-}
-
-interface Ids {
-    room: string;
-    user: string;
 }
 
 class Voting extends PureComponent<VotingProps> {
     render() {
-        console.log();
         return (
             <div className="voting">
-                {this.props.votes[this.props.ids.user] === undefined
-                    ? Object.keys(this.props.stories).map((story) => {
-                          return (
-                              <Story
-                                  key={story}
-                                  ids={this.props.ids}
-                                  point={parseInt(story)}
-                                  name={this.props.stories[story]}
-                              />
-                          );
-                      })
+                {this.props.votes[this.props.user.username] === undefined
+                    ? Object.keys(this.props.stories).map((story) => (
+                          <Story
+                              key={story}
+                              point={Number(story)}
+                              name={this.props.stories[story]}
+                          />
+                      ))
                     : null}
-                <button
-                    className="danger"
-                    onClick={() =>
-                        ClientSocket.emit("stopVoting", this.props.ids.room)
-                    }
-                >
-                    Stop voting
-                </button>
+                {this.props.user.master ? (
+                    <button
+                        className="danger"
+                        onClick={() => ClientSocket.emit("stopVoting")}
+                    >
+                        Stop voting
+                    </button>
+                ) : null}
             </div>
         );
     }
@@ -47,16 +40,12 @@ class Voting extends PureComponent<VotingProps> {
 interface StoryProps {
     point: number;
     name: string;
-    ids: Ids;
 }
 
 class Story extends PureComponent<StoryProps> {
     handleClick = () => {
-        const { ids, point } = this.props;
         ClientSocket.emit("castVote", {
-            roomId: ids.room,
-            userId: ids.user,
-            vote: point,
+            vote: this.props.point,
         });
     };
 

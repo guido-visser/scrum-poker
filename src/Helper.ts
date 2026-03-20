@@ -1,24 +1,45 @@
-const getParams: any = new Proxy(new URLSearchParams(window.location.search), {
-    get: (searchParams, prop: any) => searchParams.get(prop),
-});
+const getParams: Record<string, string | null> = new Proxy(
+    new URLSearchParams(window.location.search),
+    {
+        get: (searchParams, prop: string) => searchParams.get(prop),
+    }
+);
 
-class lsWrapper {
+class LsWrapperClass {
     getItem = (key: string) => {
         const value = localStorage.getItem(key);
         try {
-            return JSON.parse(value);
-        } catch (e) {
+            return JSON.parse(value ?? "null");
+        } catch {
             return value;
         }
     };
-    setItem = (key: string, value: any) => {
+
+    setItem = (key: string, value: unknown) => {
         localStorage.setItem(
             key,
-            typeof value === "object" ? JSON.stringify(value) : value
+            typeof value === "object" ? JSON.stringify(value) : String(value)
         );
+    };
+
+    removeItem = (key: string) => {
+        localStorage.removeItem(key);
     };
 }
 
-const LsWrapper = new lsWrapper();
+const setRoomUrl = (roomId: string | null) => {
+    const url = new URL(window.location.href);
+    if (roomId) {
+        url.searchParams.set("join", roomId);
+    } else {
+        url.searchParams.delete("join");
+    }
+    window.history.replaceState({}, "", url.toString());
+};
 
-export { LsWrapper, getParams };
+const getRoomIdFromUrl = () => getParams.join;
+const getShareUrl = (roomId: string) => `${window.location.origin}?join=${roomId}`;
+
+const LsWrapper = new LsWrapperClass();
+
+export { LsWrapper, getParams, getRoomIdFromUrl, getShareUrl, setRoomUrl };

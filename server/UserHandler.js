@@ -1,22 +1,18 @@
 class UserHandler {
     users = {};
 
-    createUser(username, socketId, master, spectator) {
-        this.users[socketId] = username;
-        if (!spectator) {
-            return { username, master, status: "online" };
-        } else {
-            return { username, spectator, status: "online" };
-        }
+    bindUser(socketId, session) {
+        this.users[socketId] = session;
+        return session;
     }
 
-    getUserIdBySocketId = (socketId) => {
-        return this.users[socketId];
-    };
+    getSessionBySocketId(socketId) {
+        return this.users[socketId] || null;
+    }
 
-    purgeUser = (id) => {
-        delete this.users[id];
-    };
+    purgeUser(socketId) {
+        delete this.users[socketId];
+    }
 }
 
 module.exports = new UserHandler();

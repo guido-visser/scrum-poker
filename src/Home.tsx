@@ -1,13 +1,12 @@
 import React, { PureComponent } from "react";
-import ClientSocket from "./ClientSocket";
-import { RoomObj, UserObj } from "./Types";
 import cn from "classnames";
-import { LsWrapper } from "./Helper";
+import ClientSocket from "./ClientSocket";
+import { getRoomIdFromUrl, LsWrapper, setRoomUrl } from "./Helper";
+import { RoomObj, UserObj } from "./Types";
 
 interface HomeProps {
-    room?: string;
     onJoin?: (room: RoomObj, user: UserObj) => void;
-    onUpdate?: (room: RoomObj) => void;
+    onUpdate?: (room: RoomObj | null) => void;
 }
 
 interface State {
@@ -15,65 +14,142 @@ interface State {
     roomName: string;
     spectator: boolean;
     loading: boolean;
+    loadingRoom: boolean;
     message: string;
-    messageType: "error" | "info";
+    messageType: "error" | "info" | null;
+    roomId: string | null;
 }
 
 class Home extends PureComponent<HomeProps, State> {
-    constructor(props: HomeProps) {
-        super(props);
+    state: State = {
+        username: "",
+        roomName: "",
+        spectator: false,
+        loading: false,
+        loadingRoom: false,
+        message: "",
+        messageType: null,
+        roomId: null,
+    };
+
+    componentDidMount() {
         const room = LsWrapper.getItem("sp-room");
         const user = LsWrapper.getItem("sp-user");
-        this.state = {
+        const roomIdFromUrl = getRoomIdFromUrl();
+
+        this.setState({
             username: user?.username || "",
             roomName: room?.name || "",
-            spectator: false,
-            loading: false,
-            message: "",
-            messageType: null,
-        };
+            roomId: roomIdFromUrl || room?.id || null,
+        });
+
+        if (roomIdFromUrl) {
+            this.loadRoomFromLink(roomIdFromUrl);
+        }
     }
 
+    loadRoomFromLink = async (roomId: string) => {
+        this.setState({ loadingRoom: true, message: "", messageType: null });
+
+        try {
+            const response = await fetch(`/api/rooms/${roomId}`);
+            if (!response.ok) {
+                throw new Error("This room link is no longer active.");
+            }
+
+            const room = (await response.json()) as Pick<RoomObj, "id" | "name">;
+            this.setState({
+                roomName: room.name,
+                roomId: room.id,
+                loadingRoom: false,
+                message: "Shared room loaded. Enter your name to join.",
+                messageType: "info",
+            });
+        } catch (error) {
+            setRoomUrl(null);
+            this.setState({
+                loadingRoom: false,
+                roomId: null,
+                message:
+                    error instanceof Error
+                        ? error.message
+                        : "This room link is no longer active.",
+                messageType: "error",
+            });
+        }
+    };
+
     handleCreateJoin = () => {
-        if (this.state.loading) {
+        if (this.state.loading || this.state.loadingRoom) {
             return;
         }
 
-        //Simple validation
-        if (this.state.roomName === "" || this.state.username === "") {
+        if (this.state.roomName.trim() === "" || this.state.username.trim() === "") {
             this.setState({
                 message: "Please fill in all fields",
                 messageType: "error",
             });
             return;
         }
-        this.setState({ loading: true });
+
+        this.setState({ loading: true, message: "", messageType: null });
         ClientSocket.connect();
         ClientSocket.emit(
             "createJoin",
             {
+                roomId: this.state.roomId,
                 roomName: this.state.roomName,
                 username: this.state.username,
                 spectator: this.state.spectator,
             },
             ({ room, user, message, messageType, error }) => {
                 if (error) {
-                    this.setState({ message: error, messageType: "error" });
-                }
-                if (message && messageType) {
-                    this.setState({ message, messageType, loading: false });
+                    this.setState({
+                        loading: false,
+                        message: error,
+                        messageType: "error",
+                    });
                     return;
                 }
-                this.setState({ loading: false });
-                LsWrapper.setItem("sp-user", user);
-                LsWrapper.setItem("sp-room", { id: room.id, name: room.name });
-                this.props.onJoin(room, user);
+
+                if (message && messageType) {
+                    this.setState({ loading: false, message, messageType });
+                    return;
+                }
+
+                this.setState({ loading: false, roomId: room.id });
+                this.props.onJoin?.(room, user);
             }
         );
     };
 
-    handlePressEnter = (e: any) =>
-        e.keyCode === 13 ? this.handleCreateJoin() : null;
+    handlePressEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter") {
+            this.handleCreateJoin();
+        }
+    };
+
+    handleUsernameChange = (username: string) => {
+        this.setState({
+            username,
+            message: "",
+            messageType: null,
+        });
+    };
+
+    handleRoomNameChange = (roomName: string) => {
+        const hasJoinParam = Boolean(getRoomIdFromUrl());
+        this.setState({
+            roomName,
+            roomId: hasJoinParam ? null : this.state.roomId,
+            message: "",
+            messageType: null,
+        });
+
+        if (hasJoinParam) {
+            setRoomUrl(null);
+        }
+    };
 
     render() {
         return (
@@ -86,9 +162,7 @@ class Home extends PureComponent<HomeProps, State> {
                         placeholder="Name"
                         type="text"
                         onKeyDown={this.handlePressEnter}
-                        onChange={(e: any) =>
-                            this.setState({ username: e?.target?.value })
-                        }
+                        onChange={(e) => this.handleUsernameChange(e.target.value)}
                         value={this.state.username}
                     />
                     <input
@@ -96,9 +170,7 @@ class Home extends PureComponent<HomeProps, State> {
                         placeholder="Room name"
                         type="text"
                         onKeyDown={this.handlePressEnter}
-                        onChange={(e: any) =>
-                            this.setState({ roomName: e?.target?.value })
-                        }
+                        onChange={(e) => this.handleRoomNameChange(e.target.value)}
                         value={this.state.roomName}
                     />
                     <label htmlFor="chkSpectator">
@@ -108,17 +180,21 @@ class Home extends PureComponent<HomeProps, State> {
                             type="checkbox"
                             checked={this.state.spectator}
                             onChange={(e) =>
-                                this.setState({ spectator: e.target.checked })
+                                this.setState({
+                                    spectator: e.target.checked,
+                                    message: "",
+                                    messageType: null,
+                                })
                             }
                         />
                     </label>
 
                     <button
-                        disabled={this.state.loading}
+                        disabled={this.state.loading || this.state.loadingRoom}
                         onClick={this.handleCreateJoin}
                         style={{ width: "100%", marginTop: 10 }}
                     >
-                        Create / Join
+                        {this.state.loadingRoom ? "Loading room..." : "Create / Join"}
                     </button>
                     {this.state.message ? (
                         <div
