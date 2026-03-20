@@ -26,12 +26,14 @@
     "vite": "^6.4.1"
   },
   "scripts": {
-    "start": "vite",
+    "start": "node ./server.js",
+    "client": "vite",
     "build": "vite build",
     "test": "node -e \"console.log('No automated test suite is configured for this project yet.')\"",
     "test:run": "node -e \"console.log('No automated test suite is configured for this project yet.')\"",
-    "server": "node --watch ./server.js",
-    "dev": "concurrently \"node --watch server.js\" \"vite\"",
+    "server": "node ./server.js",
+    "server:watch": "node --watch ./server.js",
+    "dev": "concurrently \"yarn server:watch\" \"yarn client\"",
     "preview": "vite preview"
   },
   "resolutions": {
