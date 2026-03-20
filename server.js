@@ -4,6 +4,9 @@ const path = require("path");
 const { Server } = require("socket.io");
 const RoomHandler = require("./server/RoomHandler");
 const UserHandler = require("./server/UserHandler");
+const { attachLogger, logFile, writeLog } = require("./server/logger");
+
+attachLogger();
 
 app.get("/api/rooms/:roomId", (req, res) => {
     const room = RoomHandler.getRoomSummary(req.params.roomId);
@@ -50,8 +53,23 @@ const leaveCurrentRoom = (socket, final = false) => {
     clearSession(socket);
 };
 
+server.on("error", (error) => {
+    console.error("HTTP server failed to start", error);
+});
+
+process.on("uncaughtException", (error) => {
+    console.error("Uncaught exception", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled promise rejection", reason);
+});
+
 io.on("connection", (socket) => {
-    socket.on("disconnect", () => {
+    console.log("Socket connected", socket.id);
+
+    socket.on("disconnect", (reason) => {
+        console.log("Socket disconnected", socket.id, reason);
         leaveCurrentRoom(socket);
     });
 
@@ -102,6 +120,11 @@ io.on("connection", (socket) => {
             UserHandler.bindUser(socket.id, session);
             socket.data.session = session;
             socket.join(room.id);
+            console.log("User joined room", {
+                username,
+                roomId: room.id,
+                spectator,
+            });
             callback?.({ room, user: roomUser });
             emitRoomUpdate(room.id, room);
             return;
@@ -131,11 +154,17 @@ io.on("connection", (socket) => {
         UserHandler.bindUser(socket.id, session);
         socket.data.session = session;
         socket.join(room.id);
+        console.log("Room created", {
+            roomId: room.id,
+            roomName: room.name,
+            username,
+        });
         callback?.({ room, user: room.users[username] });
         emitRoomUpdate(room.id, room);
     });
 
     socket.on("leaveRoom", () => {
+        console.log("Leave room requested", socket.id);
         leaveCurrentRoom(socket, true);
     });
 
@@ -145,6 +174,7 @@ io.on("connection", (socket) => {
             return;
         }
 
+        console.log("Voting started", session);
         emitRoomUpdate(
             session.roomId,
             RoomHandler.startVoting(session.roomId, session.username)
@@ -157,6 +187,7 @@ io.on("connection", (socket) => {
             return;
         }
 
+        console.log("Voting stopped", session);
         emitRoomUpdate(
             session.roomId,
             RoomHandler.stopVoting(session.roomId, session.username)
@@ -169,6 +200,7 @@ io.on("connection", (socket) => {
             return;
         }
 
+        console.log("Vote cast", { ...session, vote });
         emitRoomUpdate(
             session.roomId,
             RoomHandler.castVote(session.username, session.roomId, vote)
@@ -181,6 +213,11 @@ io.on("connection", (socket) => {
             return;
         }
 
+        console.log("Stories saved", {
+            roomId: session.roomId,
+            username: session.username,
+            storyCount: Object.keys(stories || {}).length,
+        });
         emitRoomUpdate(
             session.roomId,
             RoomHandler.saveStories(session.roomId, session.username, stories)
@@ -189,10 +226,14 @@ io.on("connection", (socket) => {
 });
 
 process.on("SIGINT", () => {
+    console.log("SIGINT received, shutting down");
     process.exit(0);
 });
 
 const PORT = process.env.PORT || 8080;
-server.listen(PORT);
+server.listen(PORT, () => {
+    console.log(`Listening on port: ${PORT}`);
+    console.log(`Server log file: ${logFile}`);
+});
 
-console.log(`Listening on port: ${PORT}`);
+writeLog("INFO", ["Server bootstrap complete"]);
