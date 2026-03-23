@@ -1,19 +1,20 @@
-import React from "react";
-import ClientSocket from "./ClientSocket";
-import UserCard from "./components/UserCard";
-import { RoomObj, UserObj } from "./Types";
-import "./Room.scss";
-import Voting from "./components/Voting";
-import _, { Dictionary } from "lodash";
-import Stories from "./components/Stories";
+import _ from "lodash";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import React from "react";
+import ClientSocket from "./ClientSocket";
+import Stories from "./components/Stories";
+import UserCard from "./components/UserCard";
+import Voting from "./components/Voting";
+import { RoomObj, UserObj } from "./Types";
+import "./Room.scss";
+
 dayjs.extend(relativeTime);
 
 interface RoomProps {
     room: RoomObj;
     user: UserObj;
-    onUpdate: (room: RoomObj) => void;
+    onUpdate: (room: RoomObj | null) => void;
 }
 
 interface State {
@@ -23,44 +24,47 @@ interface State {
 
 class Room extends React.PureComponent<RoomProps, State> {
     state: State = { editStories: false, lastVoteTime: 0 };
-    leaving = window.addEventListener("beforeunload", (ev) => {
-        ev.preventDefault();
-        this.handleLeaveRoom();
-    });
+    intervalId?: number;
 
     componentDidMount() {
-        ClientSocket.subscribe("roomUpdate", (room) => {
+        ClientSocket.subscribe<RoomObj | null>("roomUpdate", (room) => {
             this.props.onUpdate(room);
         });
 
-        setInterval(() => {
-            this.setState({ lastVoteTime: this.state.lastVoteTime + 1 });
+        window.addEventListener("beforeunload", this.handleBeforeUnload);
+        this.intervalId = window.setInterval(() => {
+            this.setState((state) => ({ lastVoteTime: state.lastVoteTime + 1 }));
         }, 60000);
     }
 
     componentWillUnmount() {
-        this.handleLeaveRoom();
+        ClientSocket.unsubscribe("roomUpdate");
+        window.removeEventListener("beforeunload", this.handleBeforeUnload);
+        if (this.intervalId) {
+            window.clearInterval(this.intervalId);
+        }
     }
 
+    handleBeforeUnload = () => {
+        ClientSocket.emit("leaveRoom");
+    };
+
     handleLeaveRoom = () => {
-        ClientSocket.emit("leaveRoom", {
-            roomId: this.props.room.id,
-            userId: this.props.user.id,
-        });
-        ClientSocket.unsubscribe(this.props.room.id);
+        ClientSocket.emit("leaveRoom");
+        ClientSocket.unsubscribe("roomUpdate");
         ClientSocket.disconnect();
         this.props.onUpdate(null);
     };
 
     handleStartVoting = () => {
-        ClientSocket.emit("startVoting", this.props.room.id);
+        ClientSocket.emit("startVoting");
     };
 
     calculateResult = (): number => {
         let total = 0;
-        let totalUsers = Object.keys(this.props.room.votes).length;
-        Object.keys(this.props.room.votes).forEach((vote) => {
-            total = total + this.props.room.votes[vote];
+        const totalUsers = Object.keys(this.props.room.votes).length;
+        Object.values(this.props.room.votes).forEach((vote) => {
+            total += vote;
         });
         return Math.round((total / totalUsers + Number.EPSILON) * 100) / 100;
     };
@@ -69,32 +73,27 @@ class Room extends React.PureComponent<RoomProps, State> {
         this.setState({ editStories: true });
     };
 
-    handleSaveStories = (stories: Dictionary<string>) => {
-        ClientSocket.emit("saveStories", {
-            roomId: this.props.room.id,
-            stories,
-        });
+    handleSaveStories = (stories: Record<string, string>) => {
+        ClientSocket.emit("saveStories", { stories });
         this.setState({ editStories: false });
     };
 
     render() {
         const { room, user } = this.props;
-        const specs = Object.keys(room.spectators).map((id) => {
-            const spec = room.spectators[id];
-            return spec.username;
-        });
-
+        const spectatorNames = Object.keys(room.spectators).map(
+            (id) => room.spectators[id].username
+        );
         const spectators =
-            specs.length > 1
-                ? specs.slice(0, -1).join(", ") + " and " + specs.slice(-1)
-                : specs.join(", ");
+            spectatorNames.length > 1
+                ? `${spectatorNames.slice(0, -1).join(", ")} and ${spectatorNames.slice(-1)}`
+                : spectatorNames.join(", ");
 
         return (
             <div className="room">
-                <h1 className="app__title">{room?.name}</h1>
+                <h1 className="app__title">{room.name}</h1>
                 {spectators ? (
                     <div>{`${spectators} ${
-                        specs.length > 1 ? "are" : "is"
+                        spectatorNames.length > 1 ? "are" : "is"
                     } spectating`}</div>
                 ) : null}
                 {room.lastVoteTime ? (
@@ -110,36 +109,28 @@ class Room extends React.PureComponent<RoomProps, State> {
                         onCancel={() => this.setState({ editStories: false })}
                         onSave={this.handleSaveStories}
                         stories={room.stories}
-                        room={room}
                     />
                 ) : null}
                 {!this.state.editStories ? (
                     <>
                         <div className="users">
                             {Object.keys(room.users)
-                                .filter((user) => !room.users[user].spectator)
-                                .map((id) => (
+                                .filter((username) => !room.users[username].spectator)
+                                .map((username) => (
                                     <UserCard
-                                        key={id}
-                                        user={room.users[id]}
-                                        small={
-                                            !room.voting &&
-                                            _.isEmpty(room.votes)
-                                        }
+                                        key={username}
+                                        user={room.users[username]}
+                                        small={!room.voting && _.isEmpty(room.votes)}
                                         room={room}
                                     />
                                 ))}
                         </div>
                         {!room.voting && !user.spectator ? (
-                            <button onClick={this.handleStartVoting}>
-                                Start voting
-                            </button>
-                        ) : !user.spectator ? (
+                            <button onClick={this.handleStartVoting}>Start voting</button>
+                        ) : room.voting && !user.spectator ? (
                             <Voting
-                                ids={{
-                                    room: room.id,
-                                    user: user.username,
-                                }}
+                                roomId={room.id}
+                                user={user}
                                 stories={room.stories}
                                 votes={room.votes}
                             />
@@ -148,11 +139,14 @@ class Room extends React.PureComponent<RoomProps, State> {
                         )}
                         {!room.voting && user.master ? (
                             <div style={{ marginTop: 10 }}>
-                                <button onClick={this.handleEditStories}>
-                                    Edit stories
-                                </button>
+                                <button onClick={this.handleEditStories}>Edit stories</button>
                             </div>
                         ) : null}
+                        <div style={{ marginTop: 10 }}>
+                            <button className="danger" onClick={this.handleLeaveRoom}>
+                                Leave room
+                            </button>
+                        </div>
                     </>
                 ) : null}
             </div>

@@ -1,46 +1,51 @@
-# Getting Started with Create React App
+# Scrum Poker
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Scrum Poker is a lightweight planning-poker app with a React frontend and an Express plus Socket.IO backend.
 
-## Available Scripts
+## Requirements
 
-In the project directory, you can run:
+- Node.js `20.x` to `25.x`
+- Yarn `1.22+`
 
-### `yarn start`
+## Scripts
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Run these commands with Yarn.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+- `yarn dev`: starts the backend in watch mode and the Vite frontend on port `3000`
+- `yarn client`: starts the Vite frontend only
+- `yarn start`: starts the production Node server from `server.js`
+- `yarn server`: starts the production Node server from `server.js`
+- `yarn server:watch`: starts the backend only with Node watch mode
+- `yarn build`: creates a production build in `build/`
+- `yarn preview`: previews the production frontend bundle
+- `yarn test`: prints the current test-suite status
 
-### `yarn test`
+## Security notes
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Websocket actions are authorized from server-side socket session state instead of trusting client-supplied user and room identifiers.
+- The frontend toolchain was migrated from CRA/CRACO to Vite to remove the large vulnerable dependency tree from `react-scripts`.
+- The server uses `helmet`, disables `x-powered-by`, and limits JSON and form payload sizes.
 
-### `yarn build`
+## Development
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Run `yarn install`
+2. Run `yarn dev`
+3. Open [http://localhost:3000](http://localhost:3000)
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Production
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. Run `yarn install`
+2. Run `yarn build`
+3. Start the app with `yarn start`
+4. The Express server will serve the compiled frontend from `build/`
 
-### `yarn eject`
+## Plesk
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+1. Set the application root to this project.
+2. Use a Node.js version in the `20.x` to `25.x` range.
+3. Set the startup file to `server.js`, or use the app start command `yarn start`.
+4. Run `yarn install` and then `yarn build` after each deploy.
+5. Make sure the app is exposed through Plesk's assigned `PORT`; the server already reads `process.env.PORT`.
+6. Runtime logs are written to `logs/server.log` inside the project root.
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
+If Plesk also asks for a document root, leave the Node app pointed at the project root. The Express server serves the compiled frontend from `build/` itself.

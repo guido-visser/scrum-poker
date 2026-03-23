@@ -12,9 +12,9 @@ export interface RoomObj {
 }
 
 export interface UserObj {
-    id: string;
     username: string;
     master?: boolean;
     spectator?: boolean;
     status: "online" | "offline";
+    joinedAt?: number;
 }
